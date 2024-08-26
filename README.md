@@ -1,1 +1,1 @@
-GPT-Enhanced Agent Assistant System
+GPT-Enhanced Agent Assistant System: A creative writing assistant system, which we've dubbed "Literature Lab." This system will provide targeted assistance with various aspects of creative writing, including feedback, inspiration, and genre-specific support.
