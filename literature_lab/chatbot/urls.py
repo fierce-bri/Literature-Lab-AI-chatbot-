@@ -1,27 +1,16 @@
-"""URL routes for the Literature Lab writing assistant."""
+"""Root URL configuration for Literature Lab."""
 
-from django.urls import path
-
-from . import views
-
-
-app_name = "chatbot"
+from django.contrib import admin
+from django.urls import include, path
 
 
 urlpatterns = [
     path(
+        "admin/",
+        admin.site.urls,
+    ),
+    path(
         "",
-        views.assistant_view,
-        name="home",
-    ),
-    path(
-        "api/v1/health/",
-        views.health_api,
-        name="api-health",
-    ),
-    path(
-        "api/v1/respond/",
-        views.assistant_api,
-        name="api-respond",
+        include("chatbot.urls"),
     ),
 ]
