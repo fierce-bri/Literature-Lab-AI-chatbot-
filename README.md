@@ -7,6 +7,23 @@ Literature Lab is a Django creative-writing assistant with a browser interface a
 
 The current version is **deterministic and explainable**. It does not claim to use GPT or another external language model. Instead, it provides a reliable local service layer that can later be extended with an optional LLM provider.
 
+## Demo
+
+<p align="center">
+  <img
+    src="docs/screenshots/literature-lab-demo.png"
+    alt="Literature Lab creative writing assistant"
+    width="900"
+  >
+</p>
+
+<p align="center">
+  <em>
+    Literature Lab generating genre-aware writing guidance through
+    the Django browser interface.
+  </em>
+</p>
+
 ## The Problem It Solves
 
 Writers often need a structured way to review a draft, explore possible story directions, identify revision priorities, or decide what should happen next.
