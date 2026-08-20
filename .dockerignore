@@ -1,0 +1,51 @@
+# Version control
+.git/
+.github/
+.gitignore
+
+# Environment variables
+.env
+.env.*
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Tests and coverage
+literature_lab/chatbot/tests/
+.pytest_cache/
+.coverage
+htmlcov/
+requirements-dev.txt
+
+# Local Django-generated files
+literature_lab/db.sqlite3
+*.sqlite3
+literature_lab/staticfiles/
+staticfiles/
+media/
+
+# Documentation not required by the running service
+Documentation.pdf
+README.md
+
+# IDE settings
+.vscode/
+.idea/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
