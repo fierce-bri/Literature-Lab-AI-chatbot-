@@ -18,6 +18,7 @@ from django.views.decorators.http import (
 )
 
 from .forms import WritingAssistantForm
+from .models import WritingInteraction
 from .services import (
     WritingAssistantResult,
     WritingAssistantService,
@@ -27,8 +28,29 @@ from .services import (
 writing_assistant = WritingAssistantService()
 
 
+def _save_interaction(
+    *,
+    text: str,
+    result: WritingAssistantResult,
+    source: str,
+) -> WritingInteraction:
+    """Persist one successful writing-assistant interaction."""
+
+    return WritingInteraction.objects.create(
+        input_text=text,
+        response_text=result.response,
+        task=result.task,
+        genre=result.genre,
+        source=source,
+        word_count=result.word_count,
+        sentence_count=result.sentence_count,
+    )
+
+
 @require_http_methods(["GET", "POST"])
-def assistant_view(request: HttpRequest) -> HttpResponse:
+def assistant_view(
+    request: HttpRequest,
+) -> HttpResponse:
     """Render the browser-based writing-assistant interface."""
 
     form = WritingAssistantForm(
@@ -38,6 +60,7 @@ def assistant_view(request: HttpRequest) -> HttpResponse:
     )
 
     result: WritingAssistantResult | None = None
+    interaction: WritingInteraction | None = None
 
     if request.method == "POST" and form.is_valid():
         try:
@@ -48,7 +71,17 @@ def assistant_view(request: HttpRequest) -> HttpResponse:
             )
 
         except (TypeError, ValueError) as error:
-            form.add_error(None, str(error))
+            form.add_error(
+                None,
+                str(error),
+            )
+
+        else:
+            interaction = _save_interaction(
+                text=form.cleaned_data["text"],
+                result=result,
+                source=WritingInteraction.Source.WEB,
+            )
 
     return render(
         request,
@@ -56,12 +89,15 @@ def assistant_view(request: HttpRequest) -> HttpResponse:
         {
             "form": form,
             "result": result,
+            "interaction": interaction,
         },
     )
 
 
 @require_GET
-def health_api(request: HttpRequest) -> JsonResponse:
+def health_api(
+    request: HttpRequest,
+) -> JsonResponse:
     """Confirm that the Literature Lab service is available."""
 
     return JsonResponse(
@@ -75,13 +111,10 @@ def health_api(request: HttpRequest) -> JsonResponse:
 
 @csrf_exempt
 @require_POST
-def assistant_api(request: HttpRequest) -> JsonResponse:
-    """Generate writing guidance from a JSON request.
-
-    The endpoint is CSRF-exempt because it is intended to be called as a
-    stateless JSON API rather than submitted through a Django HTML form.
-    Authentication and rate limiting are not yet included.
-    """
+def assistant_api(
+    request: HttpRequest,
+) -> JsonResponse:
+    """Generate writing guidance from a JSON request."""
 
     if request.content_type != "application/json":
         return JsonResponse(
@@ -98,7 +131,10 @@ def assistant_api(request: HttpRequest) -> JsonResponse:
             request.body.decode("utf-8")
         )
 
-    except (UnicodeDecodeError, json.JSONDecodeError):
+    except (
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+    ):
         return JsonResponse(
             {
                 "detail": (
@@ -172,12 +208,24 @@ def assistant_api(request: HttpRequest) -> JsonResponse:
             status=400,
         )
 
+    interaction = _save_interaction(
+        text=form.cleaned_data["text"],
+        result=result,
+        source=WritingInteraction.Source.API,
+    )
+
     return JsonResponse(
         {
+            "request_id": str(
+                interaction.request_id
+            ),
             "response": result.response,
             "task": result.task,
             "genre": result.genre,
             "word_count": result.word_count,
             "sentence_count": result.sentence_count,
+            "created_at": (
+                interaction.created_at.isoformat()
+            ),
         }
     )
