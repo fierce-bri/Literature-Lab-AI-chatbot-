@@ -1,0 +1,203 @@
+name: Docker
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke-test:
+    name: Build and smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Show Docker version
+        run: docker version
+
+      - name: Build production image
+        run: |
+          docker build \
+            --tag literature-lab:test \
+            .
+
+      - name: Create database volume
+        run: |
+          docker volume create \
+            literature-lab-data
+
+      - name: Start Literature Lab container
+        run: |
+          docker run \
+            --detach \
+            --name literature-lab \
+            --publish 8000:8000 \
+            --env DJANGO_DEBUG=false \
+            --env DJANGO_SECRET_KEY=ci-only-secret-key-not-for-production \
+            --env DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost \
+            --env DJANGO_DATABASE_PATH=/data/db.sqlite3 \
+            --mount source=literature-lab-data,target=/data \
+            literature-lab:test
+
+      - name: Wait for health endpoint
+        run: |
+          for attempt in {1..45}; do
+            if curl \
+              --fail \
+              --silent \
+              --show-error \
+              http://127.0.0.1:8000/api/v1/health/ \
+              --output /tmp/health.json; then
+
+              cat /tmp/health.json
+
+              python - <<'PY'
+          import json
+
+          with open(
+              "/tmp/health.json",
+              encoding="utf-8",
+          ) as response_file:
+              response = json.load(response_file)
+
+          assert response == {
+              "status": "ok",
+              "service": "literature-lab",
+              "mode": "deterministic",
+          }
+          PY
+
+              exit 0
+            fi
+
+            if ! docker inspect \
+              --format '{{.State.Running}}' \
+              literature-lab \
+              | grep --quiet true; then
+
+              echo "Container stopped before becoming ready."
+              docker logs literature-lab
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          echo "Literature Lab did not become ready within 90 seconds."
+          docker logs literature-lab
+          exit 1
+
+      - name: Smoke test browser interface
+        run: |
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            http://127.0.0.1:8000/ \
+            --output /tmp/home.html
+
+          grep \
+            --fixed-strings \
+            --quiet \
+            "Literature Lab" \
+            /tmp/home.html
+
+          grep \
+            --fixed-strings \
+            --quiet \
+            "Generate writing guidance" \
+            /tmp/home.html
+
+      - name: Smoke test writing assistant API
+        run: |
+          cat > /tmp/request.json <<'JSON'
+          {
+            "text": "The traveller reached the abandoned city. Rain darkened the road.",
+            "task": "brainstorm",
+            "genre": "fantasy"
+          }
+          JSON
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --request POST \
+            --header "Content-Type: application/json" \
+            --data @/tmp/request.json \
+            http://127.0.0.1:8000/api/v1/respond/ \
+            --output /tmp/response.json
+
+          cat /tmp/response.json
+
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from uuid import UUID
+
+          with open(
+              "/tmp/response.json",
+              encoding="utf-8",
+          ) as response_file:
+              response = json.load(response_file)
+
+          UUID(response["request_id"])
+          datetime.fromisoformat(response["created_at"])
+
+          assert response["task"] == "brainstorm"
+          assert response["genre"] == "fantasy"
+          assert response["word_count"] == 10
+          assert response["sentence_count"] == 2
+          assert response["response"].strip()
+          PY
+
+      - name: Verify interaction persistence
+        run: |
+          docker exec literature-lab \
+            python manage.py shell \
+            --command "
+          from chatbot.models import WritingInteraction
+
+          interactions = WritingInteraction.objects.filter(
+              source='api',
+              task='brainstorm',
+              genre='fantasy',
+          )
+
+          count = interactions.count()
+
+          print(
+              f'Persisted API interactions: {count}'
+          )
+
+          assert count == 1
+          "
+
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          docker logs literature-lab || true
+
+      - name: Remove test resources
+        if: always()
+        run: |
+          docker rm \
+            --force \
+            literature-lab \
+            || true
+
+          docker volume rm \
+            literature-lab-data \
+            || true
