@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+    <meta
+        name="description"
+        content="Literature Lab creative writing assistant"
+    >
+
+    <title>Literature Lab</title>
+
+    <style>
+        :root {
+            color-scheme: dark;
+            --background: #10131a;
+            --panel: #181d27;
+            --panel-light: #202735;
+            --border: #343f52;
+            --text: #f3f5f7;
+            --muted: #adb7c7;
+            --accent: #9d78ff;
+            --accent-hover: #b59aff;
+            --error: #ff9898;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(
+                    circle at top,
+                    #222a3d 0,
+                    var(--background) 45%
+                );
+            color: var(--text);
+            font-family:
+                Inter,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            line-height: 1.55;
+        }
+
+        main {
+            width: min(1180px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 48px 0;
+        }
+
+        header {
+            margin-bottom: 30px;
+        }
+
+        h1,
+        h2,
+        p {
+            margin-top: 0;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+            font-size: clamp(2rem, 6vw, 3.7rem);
+            letter-spacing: -0.04em;
+        }
+
+        h2 {
+            font-size: 1.35rem;
+        }
+
+        .subtitle {
+            max-width: 760px;
+            color: var(--muted);
+            font-size: 1.05rem;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns:
+                minmax(0, 1.1fr)
+                minmax(320px, 0.9fr);
+            gap: 24px;
+            align-items: start;
+        }
+
+        .panel {
+            padding: 26px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: rgba(24, 29, 39, 0.94);
+            box-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+        }
+
+        .field {
+            margin-bottom: 20px;
+        }
+
+        .selection-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            font-weight: 700;
+        }
+
+        textarea,
+        select {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--panel-light);
+            color: var(--text);
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 330px;
+            padding: 15px;
+            resize: vertical;
+        }
+
+        select {
+            padding: 11px 12px;
+        }
+
+        textarea:focus,
+        select:focus {
+            border-color: var(--accent);
+            outline: 3px solid rgba(157, 120, 255, 0.18);
+        }
+
+        button {
+            width: 100%;
+            padding: 13px 20px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--accent);
+            color: white;
+            font: inherit;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: var(--accent-hover);
+        }
+
+        .error {
+            margin: 7px 0 0;
+            color: var(--error);
+            font-size: 0.92rem;
+        }
+
+        .metadata {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .badge {
+            padding: 5px 9px;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: var(--panel-light);
+            color: var(--muted);
+            font-size: 0.86rem;
+        }
+
+        .response {
+            min-height: 260px;
+            margin: 0;
+            padding: 18px;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #111620;
+            color: var(--text);
+            font-family: inherit;
+            white-space: pre-wrap;
+        }
+
+        .empty-state {
+            color: var(--muted);
+        }
+
+        code {
+            padding: 2px 6px;
+            border-radius: 5px;
+            background: var(--panel-light);
+        }
+
+        .api-note {
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 0.94rem;
+        }
+
+        @media (max-width: 800px) {
+            main {
+                padding-top: 28px;
+            }
+
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .selection-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .panel {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <header>
+            <h1>Literature Lab</h1>
+
+            <p class="subtitle">
+                Analyze a draft, explore story directions, build a
+                revision plan, or outline what should happen next.
+            </p>
+        </header>
+
+        <div class="layout">
+            <section class="panel">
+                <h2>Writing input</h2>
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% for error in form.non_field_errors %}
+                        <p class="error">{{ error }}</p>
+                    {% endfor %}
+
+                    <div class="field">
+                        <label for="{{ form.text.id_for_label }}">
+                            {{ form.text.label }}
+                        </label>
+
+                        {{ form.text }}
+
+                        {% for error in form.text.errors %}
+                            <p class="error">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="selection-grid">
+                        <div class="field">
+                            <label for="{{ form.task.id_for_label }}">
+                                Task
+                            </label>
+
+                            {{ form.task }}
+
+                            {% for error in form.task.errors %}
+                                <p class="error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+
+                        <div class="field">
+                            <label for="{{ form.genre.id_for_label }}">
+                                Genre
+                            </label>
+
+                            {{ form.genre }}
+
+                            {% for error in form.genre.errors %}
+                                <p class="error">{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <button type="submit">
+                        Generate writing guidance
+                    </button>
+                </form>
+            </section>
+
+            <section class="panel">
+                {% if result %}
+                    <h2>Writing guidance</h2>
+
+                    <div class="metadata">
+                        <span class="badge">
+                            Task: {{ result.task|title }}
+                        </span>
+
+                        <span class="badge">
+                            Genre: {{ result.genre|title }}
+                        </span>
+
+                        <span class="badge">
+                            {{ result.word_count }} words
+                        </span>
+
+                        <span class="badge">
+                            {{ result.sentence_count }} sentences
+                        </span>
+                    </div>
+
+                    <pre class="response">{{ result.response }}</pre>
+                {% else %}
+                    <h2>How it works</h2>
+
+                    <div class="empty-state">
+                        <p>
+                            Enter a paragraph, scene, premise, or story
+                            idea and choose the kind of support you need.
+                        </p>
+
+                        <p>
+                            The current version provides deterministic,
+                            explainable writing guidance without requiring
+                            an external AI account.
+                        </p>
+                    </div>
+                {% endif %}
+
+                <div class="api-note">
+                    JSON API:
+                    <code>POST /api/v1/respond/</code>
+
+                    <br>
+
+                    Health check:
+                    <code>GET /api/v1/health/</code>
+                </div>
+            </section>
+        </div>
+    </main>
+</body>
+</html>
