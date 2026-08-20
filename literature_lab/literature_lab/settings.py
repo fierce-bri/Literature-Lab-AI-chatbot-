@@ -24,7 +24,7 @@ DEBUG = os.getenv(
     "true",
 ).strip().lower() in {
     "1",
-    "true",
+    "true", 
     "yes",
     "on",
 }
