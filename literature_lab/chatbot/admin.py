@@ -79,3 +79,14 @@ class WritingInteractionAdmin(admin.ModelAdmin):
         """Interaction history should not be edited manually."""
 
         return False
+        def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: WritingInteraction | None = None,
+    ) -> bool:
+        """Interaction history should not be deleted manually."""
+
+        return False
+
+
+
